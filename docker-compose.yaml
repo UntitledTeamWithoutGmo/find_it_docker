@@ -1,0 +1,92 @@
+services:
+  backend-first:
+    image: korolshutov/find_it_back_main_45
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/FindIt
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+    ports:
+      - "8080:8080"
+      
+  frontend:
+    image: korolshutov/find_it_frontend_3
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "6001:6001"
+
+  backend-second:
+    image: korolshutov/find_it_back_code_8
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    environment:
+      SERVER_PORT: 5000
+    ports:
+      - "5000:5000"
+
+  
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    restart: always
+    ports:
+      - "9092:9092"   
+      - "9093:9093"   
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes  
+      - KAFKA_CFG_NODE_ID=1  
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker  
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093  
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092  
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093  
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER  
+      - ALLOW_PLAINTEXT_LISTENER=yes  
+      - KAFKA_CFG_LOG_DIRS=/bitnami/kafka/data  
+    healthcheck:
+      test:  ["CMD-SHELL",  "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - kafka_data:/bitnami/kafka/data  
+  
+
+
+  db:
+    image: postgres:16.0
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: FindIt
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db-data:
+  kafka_data:
+
+
+
+
+
